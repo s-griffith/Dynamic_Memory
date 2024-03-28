@@ -75,10 +75,10 @@ void *smalloc(size_t size)
     }
 
     // find cell that the size needed is closest to in size
-    int cell = SysStats::_find_cell(size);
+    int cell = stats._find_cell(size);
     // send the cell to helper function which will divide blocks until have one to return
     // helper function returns address
-    void *addr = SysStats::_divide_blocks(cell, cell);
+    void *addr = stats._divide_blocks(cell, cell);
     // remove from list in desired cell & update stats
     MallocMetadata *metadata = (MallocMetadata *)addr;
     metadata->is_free = false;
@@ -119,7 +119,7 @@ void sfree(void *p)
     metadata->is_free = true;
     stats.num_free_blocks++;
     stats.num_free_bytes += metadata->size - METADATA_SIZE;
-    _merge_blocks(p);
+    stats._merge_blocks(p);
 }
 
 void *srealloc(void *oldp, size_t size)
