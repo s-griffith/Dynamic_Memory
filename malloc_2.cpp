@@ -40,7 +40,7 @@ void *smalloc(size_t size)
                 tmp->is_free = false;
                 stats.num_free_blocks--;
                 stats.num_free_bytes -= tmp->size;
-                return tmp + sizeof(MallocMetadata);
+                return (char*)tmp + sizeof(MallocMetadata);
             }
             last = tmp;
             tmp = tmp->next;
@@ -58,6 +58,9 @@ void *smalloc(size_t size)
     if (data->prev == nullptr)
     {
         stats.list = data;
+    }
+    else {
+        last->next = data;
     }
     return (char*)section + sizeof(MallocMetadata);
 }
