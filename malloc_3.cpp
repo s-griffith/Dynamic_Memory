@@ -29,7 +29,7 @@ public:
     SysStats() : list(nullptr), num_free_blocks(0), num_free_bytes(0), num_allocated_blocks(0), num_allocated_bytes(0),
                  start_addr(NULL)
     {
-        for (i = 0; i < 11; i++)
+        for (int i = 0; i < 11; i++)
         {
             free_list[i] = nullptr;
         }
@@ -75,10 +75,10 @@ void *smalloc(size_t size)
     }
 
     // find cell that the size needed is closest to in size
-    int cell = _find_cell(size);
+    int cell = SysStats::_find_cell(size);
     // send the cell to helper function which will divide blocks until have one to return
     // helper function returns address
-    void *addr = _divide_blocks(cell, cell);
+    void *addr = SysStats::_divide_blocks(cell, cell);
     // remove from list in desired cell & update stats
     MallocMetadata *metadata = (MallocMetadata *)addr;
     metadata->is_free = false;
@@ -162,12 +162,12 @@ int SysStats::_find_cell(size_t size)
 void SysStats::_insert(void *toMerge, MallocMetadata *metadata)
 {
     int cell = _find_cell(metadata->size);
-    void *addr = stats.free_list[cell];
+    MallocMetadata *addr = stats.free_list[cell];
     if (addr == nullptr)
     {
-        stats.free_list[cell] = toMerge;
+        stats.free_list[cell] = (MallocMetadata*)toMerge;
     }
-    void *tmp = addr;
+    MallocMetadata *tmp = addr;
     // find largest address that is still smaller than toMerge so can be put in in size order
     while (tmp != nullptr)
     {
