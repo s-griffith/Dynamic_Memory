@@ -1,4 +1,5 @@
 #include <unistd.h>
+#include <stdio.h>
 
 static const int MAX_SIZE = 100000000;
 
@@ -17,8 +18,7 @@ public:
     size_t num_free_bytes;
     size_t num_allocated_blocks;
     size_t num_allocated_bytes;
-    SysStats() : list(nullptr), num_free_blocks(0), num_free_bytes(0), num_allocated_blocks(0), num_allocated_bytes(0),
-        num_meta_data_bytes(0) {}
+    SysStats() : list(nullptr), num_free_blocks(0), num_free_bytes(0), num_allocated_blocks(0), num_allocated_bytes(0){}
 };
 
 SysStats stats = SysStats();
@@ -55,9 +55,9 @@ void *smalloc(size_t size)
     stats.num_allocated_bytes += size;
     MallocMetadata *data = (MallocMetadata *)section;
     *data = {size, false, nullptr, last};
-    if (data.prev == nullptr)
+    if (data->prev == nullptr)
     {
-        stats.list = &data;
+        stats.list = data;
     }
     return (char*)section + sizeof(MallocMetadata);
 }
