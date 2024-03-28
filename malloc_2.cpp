@@ -11,14 +11,15 @@ struct MallocMetadata
     MallocMetadata *prev;
 };
 
-class SysStats {
-public: 
+class SysStats
+{
+public:
     MallocMetadata *list;
     size_t num_free_blocks;
     size_t num_free_bytes;
     size_t num_allocated_blocks;
     size_t num_allocated_bytes;
-    SysStats() : list(nullptr), num_free_blocks(0), num_free_bytes(0), num_allocated_blocks(0), num_allocated_bytes(0){}
+    SysStats() : list(nullptr), num_free_blocks(0), num_free_bytes(0), num_allocated_blocks(0), num_allocated_bytes(0) {}
 };
 
 SysStats stats = SysStats();
@@ -29,7 +30,7 @@ void *smalloc(size_t size)
     {
         return NULL;
     }
-    MallocMetadata *last = NULL;
+    MallocMetadata *last = nullptr;
     if (stats.list != nullptr)
     {
         MallocMetadata *tmp = stats.list;
@@ -40,7 +41,7 @@ void *smalloc(size_t size)
                 tmp->is_free = false;
                 stats.num_free_blocks--;
                 stats.num_free_bytes -= tmp->size;
-                return (char*)tmp + sizeof(MallocMetadata);
+                return (char *)tmp + sizeof(MallocMetadata);
             }
             last = tmp;
             tmp = tmp->next;
@@ -59,10 +60,11 @@ void *smalloc(size_t size)
     {
         stats.list = data;
     }
-    else {
+    else
+    {
         last->next = data;
     }
-    return (char*)section + sizeof(MallocMetadata);
+    return (char *)section + sizeof(MallocMetadata);
 }
 
 void *scalloc(size_t num, size_t size)
@@ -78,11 +80,13 @@ void *scalloc(size_t num, size_t size)
 
 void sfree(void *p)
 {
-    if (p == NULL) {
+    if (p == NULL)
+    {
         return;
     }
-    MallocMetadata* metadata = (MallocMetadata*)((char*)p - sizeof(MallocMetadata));
-    if (metadata->is_free) {
+    MallocMetadata *metadata = (MallocMetadata *)((char *)p - sizeof(MallocMetadata));
+    if (metadata->is_free)
+    {
         return;
     }
     metadata->is_free = true;
@@ -92,18 +96,22 @@ void sfree(void *p)
 
 void *srealloc(void *oldp, size_t size)
 {
-    if (size == 0 || size > MAX_SIZE) {
+    if (size == 0 || size > MAX_SIZE)
+    {
         return NULL;
     }
-    if (oldp == NULL) {
+    if (oldp == NULL)
+    {
         return smalloc(size);
     }
-    MallocMetadata* metadata = (MallocMetadata*)((char*)oldp - sizeof(MallocMetadata));
-    if (metadata->size >= size) {
+    MallocMetadata *metadata = (MallocMetadata *)((char *)oldp - sizeof(MallocMetadata));
+    if (metadata->size >= size)
+    {
         return oldp;
     }
-    void* status = smalloc(size);
-    if (status == NULL) {
+    void *status = smalloc(size);
+    if (status == NULL)
+    {
         return NULL;
     }
     memmove(status, oldp, metadata->size);
@@ -133,7 +141,7 @@ size_t _num_allocated_bytes()
 
 size_t _num_meta_data_bytes()
 {
-    return stats.num_allocated_blocks*sizeof(MallocMetadata);
+    return stats.num_allocated_blocks * sizeof(MallocMetadata);
 }
 
 size_t _size_meta_data()
