@@ -1,5 +1,5 @@
 #include <unistd.h>
-#include <stdio.h>
+#include <string.h>
 
 static const int MAX_SIZE = 100000000;
 
