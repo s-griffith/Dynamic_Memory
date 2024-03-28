@@ -62,7 +62,7 @@ void *smalloc(size_t size)
                 stats.list = data;
                 stats.free_list[MAX_ORDER] = data;
             }
-            else
+            else if (last != nullptr)
             {
                 last->next = data;
             }
