@@ -53,6 +53,9 @@ void *smalloc(size_t size)
     {
         stats.start_addr = sbrk(0);
         void *section = sbrk(32 * MAX_ORDER_SIZE);
+        if (section == (void *)(-1)) {
+            return NULL;
+        }
         for (int i = 0; i < 32; i++)
         {
             MallocMetadata *data = (MallocMetadata *)((char *)section + i * (MAX_ORDER_SIZE));
@@ -62,9 +65,9 @@ void *smalloc(size_t size)
                 stats.list = data;
                 stats.free_list[MAX_ORDER] = data;
             }
-            else if (last != nullptr)
+            else
             {
-                last->next = data;
+                data->prev->next = data;
             }
             last = data;
         }
@@ -78,19 +81,18 @@ void *smalloc(size_t size)
     int cell = stats._find_cell(size);
     // send the cell to helper function which will divide blocks until have one to return
     // helper function returns address
-    void *addr = stats._divide_blocks(cell, cell);
+    MallocMetadata *addr = stats._divide_blocks(cell, cell);
     // remove from list in desired cell & update stats
-    MallocMetadata *metadata = (MallocMetadata *)addr;
-    metadata->is_free = false;
+    addr->is_free = false;
     stats.num_free_blocks--;
-    stats.num_free_bytes -= (metadata->size - METADATA_SIZE);
-    stats.free_list[cell] = metadata->next;
-    if (metadata->next != nullptr)
+    stats.num_free_bytes -= (addr->size - METADATA_SIZE);
+    stats.free_list[cell] = addr->next;
+    if (addr->next != nullptr)
     {
-        metadata->next->prev = nullptr;
+        addr->next->prev = nullptr;
     }
-    metadata->prev = nullptr;
-    metadata->next = nullptr;
+    addr->prev = nullptr;
+    addr->next = nullptr;
     return (char *)addr + METADATA_SIZE;
 }
 
