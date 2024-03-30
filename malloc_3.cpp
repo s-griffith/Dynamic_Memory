@@ -125,7 +125,7 @@ void sfree(void *p)
     }
     metadata->is_free = true;
     stats.num_free_blocks++;
-    stats.num_free_bytes -= metadata->size - METADATA_SIZE;
+    stats.num_free_bytes += metadata->size - METADATA_SIZE;
     stats._merge_blocks(p);
 }
 
