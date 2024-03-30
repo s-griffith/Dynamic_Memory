@@ -54,10 +54,11 @@ void *smalloc(size_t size)
     {
         stats.start_addr = sbrk(0);
         void *section = sbrk(((uintptr_t)stats.start_addr % MAX_ORDER_SIZE) + (32 * MAX_ORDER_SIZE));
-        if (section == (void *)(-1)) {
+        if (section == (void *)(-1))
+        {
             return NULL;
         }
-        section = (char*)section + ((uintptr_t)stats.start_addr % MAX_ORDER_SIZE);
+        section = (char *)section + ((uintptr_t)stats.start_addr % MAX_ORDER_SIZE);
         for (int i = 0; i < 32; i++)
         {
             MallocMetadata *data = (MallocMetadata *)((char *)section + i * (MAX_ORDER_SIZE));
@@ -73,8 +74,6 @@ void *smalloc(size_t size)
             }
             last = data;
         }
-        stats.num_allocated_blocks = 32;
-        stats.num_allocated_bytes = 32 * MAX_ORDER_SIZE - 32 * (METADATA_SIZE);
         stats.num_free_blocks = 32;
         stats.num_free_bytes = 32 * MAX_ORDER_SIZE - 32 * (METADATA_SIZE);
     }
@@ -95,6 +94,10 @@ void *smalloc(size_t size)
     }
     addr->prev = nullptr;
     addr->next = nullptr;
+    stats.num_allocated_blocks++;
+    stats.num_allocated_bytes += size;
+    stats.num_free_blocks--;
+    stats.num_free_bytes = 32 * MAX_ORDER_SIZE - 32 * (METADATA_SIZE);
     return (char *)addr + METADATA_SIZE;
 }
 
@@ -122,7 +125,7 @@ void sfree(void *p)
     }
     metadata->is_free = true;
     stats.num_free_blocks++;
-    stats.num_free_bytes += metadata->size - METADATA_SIZE;
+    stats.num_free_bytes -= metadata->size - METADATA_SIZE;
     stats._merge_blocks(p);
 }
 
@@ -169,7 +172,7 @@ void SysStats::_insert(void *toMerge, MallocMetadata *metadata)
     MallocMetadata *addr = stats.free_list[cell];
     if (addr == nullptr)
     {
-        stats.free_list[cell] = (MallocMetadata*)toMerge;
+        stats.free_list[cell] = (MallocMetadata *)toMerge;
     }
     MallocMetadata *tmp = addr;
     // find largest address that is still smaller than toMerge so can be put in in size order
@@ -244,7 +247,7 @@ void SysStats::_merge_blocks(void *toMerge)
         _insert(toMerge, metadata);
         return;
     }
-    void *buddy = (void*)(((uintptr_t)toMerge) ^ metadata->size);
+    void *buddy = (void *)(((uintptr_t)toMerge) ^ metadata->size);
     MallocMetadata *buddyData = (MallocMetadata *)buddy;
     if (!buddyData->is_free || buddyData->size != metadata->size)
     {
