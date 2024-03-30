@@ -1,5 +1,6 @@
 #include <unistd.h>
 #include <string.h>
+#include <stdint.h>
 
 static const int MAX_SIZE = 100000000;
 static const int MAX_ORDER = 10;
@@ -36,7 +37,7 @@ public:
     }
     int _find_cell(size_t size);
     void _insert(void *toMerge, MallocMetadata *metadata);
-    void *_divide_blocks(int desired, int current);
+    MallocMetadata *_divide_blocks(int desired, int current);
     void _merge_blocks(void *toMerge);
 };
 
@@ -52,14 +53,15 @@ void *smalloc(size_t size)
     if (stats.list == nullptr)
     {
         stats.start_addr = sbrk(0);
-        void *section = sbrk(32 * MAX_ORDER_SIZE);
+        void *section = sbrk(((uintptr_t)stats.start_addr % MAX_ORDER_SIZE) + (32 * MAX_ORDER_SIZE));
         if (section == (void *)(-1)) {
             return NULL;
         }
+        section = (char*)section + ((uintptr_t)stats.start_addr % MAX_ORDER_SIZE);
         for (int i = 0; i < 32; i++)
         {
             MallocMetadata *data = (MallocMetadata *)((char *)section + i * (MAX_ORDER_SIZE));
-            *data = {size, true, nullptr, last};
+            *data = {MAX_ORDER_SIZE, true, nullptr, last};
             if (data->prev == nullptr)
             {
                 stats.list = data;
@@ -193,7 +195,7 @@ void SysStats::_insert(void *toMerge, MallocMetadata *metadata)
     }
 }
 
-void *SysStats::_divide_blocks(int desired, int current)
+MallocMetadata *SysStats::_divide_blocks(int desired, int current)
 {
     if (current > MAX_ORDER)
     {
@@ -222,7 +224,7 @@ void *SysStats::_divide_blocks(int desired, int current)
         toSplit->next->prev = nullptr;
     }
     toSplit->size /= 2;
-    MallocMetadata *secondBlock = (MallocMetadata *)((char *)toSplit + toSplit->size);
+    MallocMetadata *secondBlock = (MallocMetadata *)((char *)toSplit + toSplit->size + 1);
     *secondBlock = {toSplit->size, true, toSplit, nullptr};
     toSplit->next = secondBlock;
     stats.free_list[current - 1] = toSplit;
@@ -242,7 +244,7 @@ void SysStats::_merge_blocks(void *toMerge)
         _insert(toMerge, metadata);
         return;
     }
-    void *buddy = (((char *)toMerge - (char *)stats.start_addr) ^ metadata->size) + (char *)stats.start_addr;
+    void *buddy = (void*)(((uintptr_t)toMerge) ^ metadata->size);
     MallocMetadata *buddyData = (MallocMetadata *)buddy;
     if (!buddyData->is_free || buddyData->size != metadata->size)
     {
