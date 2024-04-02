@@ -213,7 +213,8 @@ int SysStats::_find_cell(size_t size)
     //     tmpSize /= 2;
     //     cell++;
     // }
-    return std::log2(tmpSize / 128) + 1;
+    return std::ceil(std::log2(tmpSize / 128));
+
     //return cell;
 }
 
