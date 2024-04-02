@@ -208,12 +208,13 @@ int SysStats::_find_cell(size_t size)
 {
     int cell = 0;
     size_t tmpSize = size + METADATA_SIZE;
-    while (tmpSize > 128)
-    {
-        tmpSize /= 2;
-        cell++;
-    }
-    return cell;
+    // while (tmpSize > 128)
+    // {
+    //     tmpSize /= 2;
+    //     cell++;
+    // }
+    return std::log2(tmpSize / 128) + 1;
+    //return cell;
 }
 
 void SysStats::_insert(void *toMerge, MallocMetadata *metadata)
