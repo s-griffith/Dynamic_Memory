@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <sys/mman.h>
 #include <iostream>
+#include <cmath>
 
 static const int MAX_SIZE = 100000000;
 static const int MAX_ORDER = 10;
@@ -165,10 +166,24 @@ void *srealloc(void *oldp, size_t size)
         return smalloc(size);
     }
     MallocMetadata *metadata = (MallocMetadata *)((char *)oldp - METADATA_SIZE);
-    metadata->is_free = true;
-    void *addr = stats._merge_blocks(oldp, size);
-    if (addr != NULL)
+    size_t calculated_size = metadata->size;
+    void *runner = oldp;
+    while (calculated_size < size + METADATA_SIZE)
     {
+        MallocMetadata *runnerData = (MallocMetadata *)((char *)runner - METADATA_SIZE);
+        void *buddy = (void *)((reinterpret_cast<uintptr_t>(runner) - METADATA_SIZE) ^ runnerData->size);
+        MallocMetadata *buddyData = (MallocMetadata *)buddy;
+        if (!buddyData->is_free || buddyData->size != metadata->size)
+        {
+            break;
+        }
+        calculated_size += buddyData->size;
+        runner = std::min((char *)buddy, (char *)runner);
+    }
+    if (calculated_size >= size + METADATA_SIZE)
+    {
+        metadata->is_free = true;
+        void *addr = stats._merge_blocks(oldp, size);
         MallocMetadata *addrMeta = (MallocMetadata *)((char *)addr - METADATA_SIZE);
         addrMeta->is_free = false;
         if (addr != oldp)
