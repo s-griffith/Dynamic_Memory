@@ -188,6 +188,7 @@ void *srealloc(void *oldp, size_t size)
     {
         std::cout << "Here " << calculated_size << "free bytes " << stats.num_free_bytes << std::endl;
         metadata->is_free = true;
+        stats.num_free_bytes += metadata->size - METADATA_SIZE;
         void *addr = stats._merge_blocks(oldp, size + METADATA_SIZE);
         MallocMetadata *addrMeta = (MallocMetadata *)((char *)addr - METADATA_SIZE);
         addrMeta->is_free = false;
