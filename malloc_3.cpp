@@ -40,7 +40,7 @@ public:
     int _find_cell(size_t size);
     void _insert(void *toMerge, MallocMetadata *metadata);
     MallocMetadata *_divide_blocks(int desired, int current);
-    void* _merge_blocks(void *toMerge, size_t size = 0);
+    void *_merge_blocks(void *toMerge, size_t size = 0);
 };
 
 SysStats stats = SysStats();
@@ -167,10 +167,14 @@ void *srealloc(void *oldp, size_t size)
     MallocMetadata *metadata = (MallocMetadata *)((char *)oldp - METADATA_SIZE);
     metadata->is_free = true;
     void *addr = stats._merge_blocks(oldp, size);
-    if (addr != NULL) {
+    if (addr != NULL)
+    {
         MallocMetadata *addrMeta = (MallocMetadata *)((char *)addr - METADATA_SIZE);
         addrMeta->is_free = false;
-        stats.num_free_bytes -= (addrMeta->size - METADATA_SIZE);
+        if (addr != oldp)
+        {
+            stats.num_free_bytes -= (addrMeta->size - METADATA_SIZE);
+        }
         return addr;
     }
     metadata->is_free = false;
@@ -275,7 +279,7 @@ MallocMetadata *SysStats::_divide_blocks(int desired, int current)
 }
 
 // Check this function!!
-void* SysStats::_merge_blocks(void *toMerge, size_t size)
+void *SysStats::_merge_blocks(void *toMerge, size_t size)
 {
     MallocMetadata *metadata = (MallocMetadata *)((char *)toMerge - METADATA_SIZE);
     if (metadata->size == MAX_ORDER_SIZE)
@@ -283,7 +287,8 @@ void* SysStats::_merge_blocks(void *toMerge, size_t size)
         _insert(toMerge, metadata);
         return toMerge;
     }
-    if (size != 0 && metadata->size >= size) {
+    if (size != 0 && metadata->size >= size)
+    {
         return toMerge;
     }
     void *buddy = (void *)((reinterpret_cast<uintptr_t>(toMerge) - METADATA_SIZE) ^ metadata->size);
