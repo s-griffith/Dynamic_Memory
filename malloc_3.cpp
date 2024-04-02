@@ -182,7 +182,7 @@ void *srealloc(void *oldp, size_t size)
     }
     if (calculated_size >= size + METADATA_SIZE)
     {
-        std::cout << "Here" << calculated_size << std::endl;
+        std::cout << "Here " << calculated_size << "free bytes " << stats.num_free_bytes << std::endl;
         metadata->is_free = true;
         void *addr = stats._merge_blocks(oldp, size + METADATA_SIZE);
         MallocMetadata *addrMeta = (MallocMetadata *)((char *)addr - METADATA_SIZE);
@@ -190,6 +190,7 @@ void *srealloc(void *oldp, size_t size)
         if (addr != oldp)
         {
             stats.num_free_bytes -= (addrMeta->size - METADATA_SIZE);
+            std::cout << "changed free bytes " << stats.num_free_bytes << std::endl;
         }
         return addr;
     }
