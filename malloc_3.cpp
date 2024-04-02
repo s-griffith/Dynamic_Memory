@@ -206,7 +206,7 @@ void *srealloc(void *oldp, size_t size)
 
 int SysStats::_find_cell(size_t size)
 {
-    int cell = 0;
+    //int cell = 0;
     size_t tmpSize = size + METADATA_SIZE;
     // while (tmpSize > 128)
     // {
