@@ -1,6 +1,8 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdint.h>
+#include <sys/mman.h>
+#include <iostream>
 
 static const int MAX_SIZE = 100000000;
 static const int MAX_ORDER = 10;
@@ -49,16 +51,24 @@ void *smalloc(size_t size)
     {
         return NULL;
     }
+	if (size > (MAX_ORDER_SIZE - METADATA_SIZE)){
+		void *section = mmap(NULL, size + METADATA_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+		MallocMetadata *data = (MallocMetadata *)((char *)section);
+		*data = {size, false, nullptr, nullptr};
+		stats.num_allocated_blocks++;
+		stats.num_allocated_bytes += size; 
+		return (char *)data + METADATA_SIZE;
+	}
     MallocMetadata *last = nullptr;
     if (stats.list == nullptr)
     {
         stats.start_addr = sbrk(0);
-        void *section = sbrk(((uintptr_t)stats.start_addr % MAX_ORDER_SIZE) + (32 * MAX_ORDER_SIZE));
+        void *section = sbrk(((32*MAX_ORDER_SIZE) - (uintptr_t)stats.start_addr % (32*MAX_ORDER_SIZE)) + (32 * MAX_ORDER_SIZE));//?
         if (section == (void *)(-1))
         {
             return NULL;
         }
-        section = (char *)section + ((uintptr_t)stats.start_addr % MAX_ORDER_SIZE);
+        section = (char *)section + ((32*MAX_ORDER_SIZE) - (uintptr_t)stats.start_addr % (32*MAX_ORDER_SIZE));
         for (int i = 0; i < 32; i++)
         {
             MallocMetadata *data = (MallocMetadata *)((char *)section + i * (MAX_ORDER_SIZE));
@@ -75,11 +85,14 @@ void *smalloc(size_t size)
             last = data;
         }
         stats.num_free_blocks = 32;
+		stats.num_allocated_blocks = 32;
+		stats.num_allocated_bytes += 32 * MAX_ORDER_SIZE - 32 * (METADATA_SIZE);
         stats.num_free_bytes = 32 * MAX_ORDER_SIZE - 32 * (METADATA_SIZE);
     }
 
     // find cell that the size needed is closest to in size
     int cell = stats._find_cell(size);
+    std::cout << "cell: "<< cell << std::endl;
     // send the cell to helper function which will divide blocks until have one to return
     // helper function returns address
     MallocMetadata *addr = stats._divide_blocks(cell, cell);
@@ -87,6 +100,7 @@ void *smalloc(size_t size)
     addr->is_free = false;
     stats.num_free_blocks--;
     stats.num_free_bytes -= (addr->size - METADATA_SIZE);
+    std::cout << "next: "<< addr->next << std::endl;
     stats.free_list[cell] = addr->next;
     if (addr->next != nullptr)
     {
@@ -94,10 +108,10 @@ void *smalloc(size_t size)
     }
     addr->prev = nullptr;
     addr->next = nullptr;
-    stats.num_allocated_blocks++;
-    stats.num_allocated_bytes += size;
-    stats.num_free_blocks--;
-    stats.num_free_bytes = 32 * MAX_ORDER_SIZE - 32 * (METADATA_SIZE);
+    //stats.num_allocated_blocks++;
+    //stats.num_allocated_bytes += size;
+    //stats.num_free_blocks--;
+    //stats.num_free_bytes = 32 * MAX_ORDER_SIZE - 32 * (METADATA_SIZE);
     return (char *)addr + METADATA_SIZE;
 }
 
@@ -119,11 +133,22 @@ void sfree(void *p)
         return;
     }
     MallocMetadata *metadata = (MallocMetadata *)((char *)p - METADATA_SIZE);
-    if (metadata->is_free)
+	//std::cout << "134 " << metadata->is_free << std::endl;
+	if (metadata->size > (MAX_ORDER_SIZE) && !metadata->is_free)
+    {
+		stats.num_free_blocks ++;
+		stats.num_allocated_bytes -= (metadata->size - METADATA_SIZE);
+        metadata->is_free = true;
+        munmap(metadata, metadata->size); //not accurate
+		return;
+    }
+    if (metadata->is_free)//what about wrong addr?
     {
         return;
     }
     metadata->is_free = true;
+	std::cout << "freed: " << metadata << std::endl;
+	//std::cout << "147 " << metadata->is_free << std::endl;
     stats.num_free_blocks++;
     stats.num_free_bytes += metadata->size - METADATA_SIZE;
     stats._merge_blocks(p);
@@ -168,11 +193,12 @@ int SysStats::_find_cell(size_t size)
 
 void SysStats::_insert(void *toMerge, MallocMetadata *metadata)
 {
-    int cell = _find_cell(metadata->size);
+    int cell = _find_cell(metadata->size - METADATA_SIZE);
     MallocMetadata *addr = stats.free_list[cell];
     if (addr == nullptr)
     {
-        stats.free_list[cell] = (MallocMetadata *)toMerge;
+        stats.free_list[cell] = metadata;
+        return;
     }
     MallocMetadata *tmp = addr;
     // find largest address that is still smaller than toMerge so can be put in in size order
@@ -208,6 +234,7 @@ MallocMetadata *SysStats::_divide_blocks(int desired, int current)
     {
         _divide_blocks(desired, current + 1);
     }
+    std::cout << "234 "<<stats.free_list[desired]<<std::endl;
     if (stats.free_list[desired] != nullptr)
     {
         return stats.free_list[desired];
@@ -227,8 +254,10 @@ MallocMetadata *SysStats::_divide_blocks(int desired, int current)
         toSplit->next->prev = nullptr;
     }
     toSplit->size /= 2;
-    MallocMetadata *secondBlock = (MallocMetadata *)((char *)toSplit + toSplit->size + 1);
-    *secondBlock = {toSplit->size, true, toSplit, nullptr};
+	//std::cout << "size after split: " << toSplit->size << std::endl;
+    MallocMetadata *secondBlock = (MallocMetadata *)((char *)toSplit + toSplit->size);//oi
+    *secondBlock = {toSplit->size, true, nullptr, toSplit};
+	std::cout << " here1!!! " << std::endl;
     toSplit->next = secondBlock;
     stats.free_list[current - 1] = toSplit;
     stats.num_free_blocks++;
@@ -247,10 +276,17 @@ void SysStats::_merge_blocks(void *toMerge)
         _insert(toMerge, metadata);
         return;
     }
-    void *buddy = (void *)(((uintptr_t)toMerge) ^ metadata->size);
+    void *buddy = (void *)((reinterpret_cast<uintptr_t>(toMerge)- METADATA_SIZE) ^ metadata->size);
+	//int intPtr1 = static_cast<int>(buddy);
+	//int intPtr2 = static_cast<int>(metadata);
+	//std::cout << "269 " << reinterpret_cast<uintptr_t>(toMerge) << std::endl;
     MallocMetadata *buddyData = (MallocMetadata *)buddy;
     if (!buddyData->is_free || buddyData->size != metadata->size)
     {
+		//std::cout << "276 " << buddyData->is_free << std::endl;
+		//std::cout << " md " << metadata << std::endl;
+		std::cout << " bd " << buddyData << std::endl;
+		//std::cout << "279 " << std::hex << reinterpret_cast<uintptr_t>(toMerge) << std::endl;
         _insert(toMerge, metadata);
         return;
     }
@@ -263,6 +299,24 @@ void SysStats::_merge_blocks(void *toMerge)
     // update the pointers
     // update stats data
     // recursive call on the merged node
+
+//if it was the last in the list 
+//std::cout << " md size:: "<< metadata->size<<std::endl;
+    int cell = _find_cell(metadata->size - METADATA_SIZE);
+    //std::cout << " md cell:: "<< cell<<std::endl;
+    //std::cout << " 300::: " << stats.free_list[cell] <<" "<< buddyData <<std::endl;
+    if(stats.free_list[cell] == buddyData)
+    {
+        //std::cout << " 302 " << stats.free_list[cell] <<" "<< buddyData <<std::endl;
+        stats.free_list[cell] = buddyData->next;
+        std::cout << " 302 " << stats.free_list[cell]<<" "<< buddyData->next <<std::endl;
+    }
+
+    /*if(stats.free_list[cell] == metadata)
+    {
+        //std::cout << " 302 " << stats.free_list[cell] <<" "<< buddyData <<std::endl;
+        stats.free_list[cell] = metadata->next;
+    }*/
     if (buddyData->next != nullptr)
     {
         buddyData->next->prev = buddyData->prev;
@@ -271,22 +325,29 @@ void SysStats::_merge_blocks(void *toMerge)
     {
         buddyData->prev->next = buddyData->next;
     }
+    
+	//std::cout << "first: "<< metadata<< "sec: " << buddyData <<std::endl;
     buddyData->prev = nullptr;
     buddyData->next = nullptr;
     void *min = toMerge;
     if ((char *)toMerge >= (char *)buddy)
     {
-        min = buddy;
+        min = (char*)buddy + METADATA_SIZE;
         buddyData->size *= 2;
+		//std::cout << "first was mul!" <<std::endl;
     }
     else
     {
+		//std::cout << "sec was mul!" <<std::endl;
         metadata->size *= 2;
+		//std::cout << "new size: "<< metadata->size<<std::endl;
     }
+    
     stats.num_allocated_blocks--;
     stats.num_allocated_bytes += METADATA_SIZE;
     stats.num_free_blocks--;
     stats.num_free_bytes += METADATA_SIZE;
+    
     _merge_blocks(min);
 }
 
