@@ -40,7 +40,7 @@ public:
     int _find_cell(size_t size);
     void _insert(void *toMerge, MallocMetadata *metadata);
     MallocMetadata *_divide_blocks(int desired, int current);
-    void _merge_blocks(void *toMerge);
+    void* _merge_blocks(void *toMerge, size_t size = 0);
 };
 
 SysStats stats = SysStats();
@@ -165,10 +165,17 @@ void *srealloc(void *oldp, size_t size)
         return smalloc(size);
     }
     MallocMetadata *metadata = (MallocMetadata *)((char *)oldp - METADATA_SIZE);
-    if (metadata->size >= size)
-    {
-        return oldp;
+    metadata->is_free = true;
+    stats.num_free_blocks++;
+    stats.num_free_bytes += metadata->size - METADATA_SIZE;
+    void *addr = stats._merge_blocks(oldp, size);
+    if (addr != NULL) {
+
+        return addr;
     }
+    metadata->is_free = false;
+    stats.num_free_blocks--;
+    stats.num_free_bytes -= metadata->size - METADATA_SIZE;
     void *status = smalloc(size);
     if (status == NULL)
     {
@@ -270,13 +277,16 @@ MallocMetadata *SysStats::_divide_blocks(int desired, int current)
 }
 
 // Check this function!!
-void SysStats::_merge_blocks(void *toMerge)
+void* SysStats::_merge_blocks(void *toMerge, size_t size)
 {
     MallocMetadata *metadata = (MallocMetadata *)((char *)toMerge - METADATA_SIZE);
     if (metadata->size == MAX_ORDER_SIZE)
     {
         _insert(toMerge, metadata);
-        return;
+        return toMerge;
+    }
+    if (size != 0 && metadata->size >= size) {
+        return toMerge;
     }
     void *buddy = (void *)((reinterpret_cast<uintptr_t>(toMerge) - METADATA_SIZE) ^ metadata->size);
     // int intPtr1 = static_cast<int>(buddy);
@@ -285,7 +295,7 @@ void SysStats::_merge_blocks(void *toMerge)
     if (!buddyData->is_free || buddyData->size != metadata->size)
     {
         _insert(toMerge, metadata);
-        return;
+        return NULL;
     }
     // merge
     // remove buddy block from cell
@@ -340,7 +350,7 @@ void SysStats::_merge_blocks(void *toMerge)
     stats.num_free_blocks--;
     stats.num_free_bytes += METADATA_SIZE;
 
-    _merge_blocks(min);
+    return _merge_blocks(min);
 }
 
 size_t _num_free_blocks()
