@@ -186,14 +186,12 @@ void *srealloc(void *oldp, size_t size)
     }
     if (calculated_size >= size + METADATA_SIZE)
     {
-        std::cout << "Here " << calculated_size << "free bytes " << stats.num_free_bytes << std::endl;
         metadata->is_free = true;
         stats.num_free_bytes += metadata->size - METADATA_SIZE;
         void *addr = stats._merge_blocks(oldp, size + METADATA_SIZE);
         MallocMetadata *addrMeta = (MallocMetadata *)((char *)addr - METADATA_SIZE);
         addrMeta->is_free = false;
         stats.num_free_bytes -= (addrMeta->size - METADATA_SIZE);
-        std::cout << "changed free bytes " << stats.num_free_bytes << std::endl;
         return addr;
     }
     void *status = smalloc(size);
@@ -334,12 +332,6 @@ void *SysStats::_merge_blocks(void *toMerge, size_t size)
     {
         stats.free_list[cell] = buddyData->next;
     }
-
-    /*if(stats.free_list[cell] == metadata)
-    {
-        //std::cout << " 302 " << stats.free_list[cell] <<" "<< buddyData <<std::endl;
-        stats.free_list[cell] = metadata->next;
-    }*/
     if (buddyData->next != nullptr)
     {
         buddyData->next->prev = buddyData->prev;
@@ -348,30 +340,15 @@ void *SysStats::_merge_blocks(void *toMerge, size_t size)
     {
         buddyData->prev->next = buddyData->next;
     }
-
-    // std::cout << "first: "<< metadata<< "sec: " << buddyData <<std::endl;
     buddyData->prev = nullptr;
     buddyData->next = nullptr;
-    void *min = toMerge;
-    if ((char *)toMerge >= (char *)buddy)
-    {
-        min = (char *)buddy + METADATA_SIZE;
-        buddyData->size *= 2;
-        // std::cout << "first was mul!" <<std::endl;
-    }
-    else
-    {
-        // std::cout << "sec was mul!" <<std::endl;
-        metadata->size *= 2;
-        // std::cout << "new size: "<< metadata->size<<std::endl;
-    }
-
+    void *min = std::min((char *)toMerge, (char *)buddy + METADATA_SIZE);
+    buddyData->size *= 2;
+    metadata->size *= 2;
     stats.num_allocated_blocks--;
     stats.num_allocated_bytes += METADATA_SIZE;
     stats.num_free_blocks--;
-
     stats.num_free_bytes += METADATA_SIZE;
-
     return _merge_blocks(min, size);
 }
 
