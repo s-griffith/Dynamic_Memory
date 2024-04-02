@@ -170,7 +170,6 @@ void *srealloc(void *oldp, size_t size)
     if (addr != NULL) {
         MallocMetadata *addrMeta = (MallocMetadata *)((char *)addr - METADATA_SIZE);
         addrMeta->is_free = false;
-        stats.num_free_blocks--;
         stats.num_free_bytes -= (addrMeta->size - METADATA_SIZE);
         return addr;
     }
