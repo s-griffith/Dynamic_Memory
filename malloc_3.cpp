@@ -136,8 +136,8 @@ void sfree(void *p)
 	//std::cout << "134 " << metadata->is_free << std::endl;
 	if (metadata->size > (MAX_ORDER_SIZE) && !metadata->is_free)
     {
-		stats.num_free_blocks ++;
-		stats.num_allocated_bytes -= (metadata->size - METADATA_SIZE);
+		stats.num_allocated_bytes -= metadata->size;
+        stats.num_allocated_blocks--;
         metadata->is_free = true;
         munmap(metadata, metadata->size); //not accurate
 		return;
