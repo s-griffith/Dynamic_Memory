@@ -183,7 +183,7 @@ void *srealloc(void *oldp, size_t size)
     if (calculated_size >= size + METADATA_SIZE)
     {
         metadata->is_free = true;
-        void *addr = stats._merge_blocks(oldp, size);
+        void *addr = stats._merge_blocks(oldp, size + METADATA_SIZE);
         MallocMetadata *addrMeta = (MallocMetadata *)((char *)addr - METADATA_SIZE);
         addrMeta->is_free = false;
         if (addr != oldp)
