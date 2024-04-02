@@ -166,6 +166,10 @@ void *srealloc(void *oldp, size_t size)
         return smalloc(size);
     }
     MallocMetadata *metadata = (MallocMetadata *)((char *)oldp - METADATA_SIZE);
+    if (metadata->size >= size)
+    {
+        return oldp;
+    }
     size_t calculated_size = metadata->size;
     void *runner = oldp;
     while (calculated_size < size + METADATA_SIZE)
@@ -187,11 +191,8 @@ void *srealloc(void *oldp, size_t size)
         void *addr = stats._merge_blocks(oldp, size + METADATA_SIZE);
         MallocMetadata *addrMeta = (MallocMetadata *)((char *)addr - METADATA_SIZE);
         addrMeta->is_free = false;
-        if (addr != oldp)
-        {
-            stats.num_free_bytes -= (addrMeta->size - METADATA_SIZE);
-            std::cout << "changed free bytes " << stats.num_free_bytes << std::endl;
-        }
+        stats.num_free_bytes -= (addrMeta->size - METADATA_SIZE);
+        std::cout << "changed free bytes " << stats.num_free_bytes << std::endl;
         return addr;
     }
     void *status = smalloc(size);
