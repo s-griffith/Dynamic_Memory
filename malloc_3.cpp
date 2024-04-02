@@ -206,16 +206,8 @@ void *srealloc(void *oldp, size_t size)
 
 int SysStats::_find_cell(size_t size)
 {
-    //int cell = 0;
     size_t tmpSize = size + METADATA_SIZE;
-    // while (tmpSize > 128)
-    // {
-    //     tmpSize /= 2;
-    //     cell++;
-    // }
-    return std::ceil(std::log2(tmpSize / 128));
-
-    //return cell;
+    return std::ceil(std::log2((double)tmpSize / 128));
 }
 
 void SysStats::_insert(void *toMerge, MallocMetadata *metadata)
