@@ -47,10 +47,6 @@ SysStats stats = SysStats();
 
 void *smalloc(size_t size)
 {
-    if (size == 0 || size > MAX_SIZE)
-    {
-        return NULL;
-    }
     MallocMetadata *last = nullptr;
     if (stats.list == nullptr)
     {
@@ -80,6 +76,10 @@ void *smalloc(size_t size)
         stats.num_allocated_blocks = 32;
         stats.num_allocated_bytes += 32 * MAX_ORDER_SIZE - 32 * (METADATA_SIZE);
         stats.num_free_bytes = 32 * MAX_ORDER_SIZE - 32 * (METADATA_SIZE);
+    }
+    if (size == 0 || size > MAX_SIZE)
+    {
+        return NULL;
     }
     if (size > (MAX_ORDER_SIZE - METADATA_SIZE))
     {
