@@ -96,6 +96,9 @@ void *smalloc(size_t size)
     // send the cell to helper function which will divide blocks until have one to return
     // helper function returns address
     MallocMetadata *addr = stats._divide_blocks(cell, cell);
+    if (addr == NULL) {
+        return NULL;
+    }
     // remove from list in desired cell & update stats
     addr->is_free = false;
     stats.num_free_blocks--;
@@ -230,9 +233,13 @@ MallocMetadata *SysStats::_divide_blocks(int desired, int current)
     {
         return NULL;
     }
+    MallocMetadata* stat;
     if (stats.free_list[current] == nullptr)
     {
-        _divide_blocks(desired, current + 1);
+        stat = _divide_blocks(desired, current + 1);
+    }
+    if (stats.free_list[current] == nullptr && stat == NULL) {
+        return NULL;
     }
     std::cout << "234 "<<stats.free_list[desired]<<std::endl;
     if (stats.free_list[desired] != nullptr)
