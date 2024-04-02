@@ -368,7 +368,7 @@ void *SysStats::_merge_blocks(void *toMerge, size_t size)
     stats.num_free_blocks--;
     stats.num_free_bytes += METADATA_SIZE;
 
-    return _merge_blocks(min);
+    return _merge_blocks(min, size);
 }
 
 size_t _num_free_blocks()
