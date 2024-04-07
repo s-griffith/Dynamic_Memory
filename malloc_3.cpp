@@ -41,7 +41,7 @@ public:
     void _insert(void *toMerge, MallocMetadata *metadata);
     MallocMetadata *_divide_blocks(int desired, int current);
     void *_merge_blocks(void *toMerge, size_t size = 0);
-    void* _min_addr(void* addr1, void* addr2);
+    void *_min_addr(void *addr1, void *addr2);
 };
 
 SysStats stats = SysStats();
@@ -199,6 +199,8 @@ void *srealloc(void *oldp, size_t size)
     return status;
 }
 
+//------------------------------------------SysStats Helper Functions--------------------------------------------
+
 int SysStats::_find_cell(size_t size)
 {
     size_t tmpSize = size + METADATA_SIZE;
@@ -310,7 +312,7 @@ void *SysStats::_merge_blocks(void *toMerge, size_t size)
     }
     buddyData->prev = nullptr;
     buddyData->next = nullptr;
-    void *min = stats._min_addr(toMerge, (char*)buddy + METADATA_SIZE);
+    void *min = stats._min_addr(toMerge, (char *)buddy + METADATA_SIZE);
     buddyData->size *= 2;
     metadata->size *= 2;
     stats.num_allocated_blocks--;
@@ -320,12 +322,16 @@ void *SysStats::_merge_blocks(void *toMerge, size_t size)
     return _merge_blocks(min, size);
 }
 
-void* SysStats::_min_addr(void* addr1, void* addr2) {
-    if ((char*)addr1 < (char*)addr2) {
+void *SysStats::_min_addr(void *addr1, void *addr2)
+{
+    if ((char *)addr1 < (char *)addr2)
+    {
         return addr1;
     }
     return addr2;
 }
+
+//------------------------------------------------Stats Functions-------------------------------------------
 
 size_t _num_free_blocks()
 {
