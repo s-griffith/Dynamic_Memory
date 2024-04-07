@@ -41,6 +41,7 @@ public:
     void _insert(void *toMerge, MallocMetadata *metadata);
     MallocMetadata *_divide_blocks(int desired, int current);
     void *_merge_blocks(void *toMerge, size_t size = 0);
+    void* _min_addr(void* addr1, void* addr2);
 };
 
 SysStats stats = SysStats();
@@ -176,7 +177,7 @@ void *srealloc(void *oldp, size_t size)
             break;
         }
         calculated_size += buddyData->size;
-        runner = _min_addr(buddy, runner);
+        runner = stats._min_addr(buddy, runner);
     }
     if (calculated_size >= size + METADATA_SIZE)
     {
@@ -309,7 +310,7 @@ void *SysStats::_merge_blocks(void *toMerge, size_t size)
     }
     buddyData->prev = nullptr;
     buddyData->next = nullptr;
-    void *min = _min_addr(toMerge, buddy + METADATA_SIZE);
+    void *min = stats._min_addr(toMerge, buddy + METADATA_SIZE);
     buddyData->size *= 2;
     metadata->size *= 2;
     stats.num_allocated_blocks--;
@@ -319,7 +320,7 @@ void *SysStats::_merge_blocks(void *toMerge, size_t size)
     return _merge_blocks(min, size);
 }
 
-void* _min_addr(void* addr1, void* addr2) {
+void* SysStats::_min_addr(void* addr1, void* addr2) {
     if ((char*)addr1 < (char*)addr2) {
         return addr1;
     }
