@@ -176,7 +176,7 @@ void *srealloc(void *oldp, size_t size)
             break;
         }
         calculated_size += buddyData->size;
-        runner = std::min((char *)buddy, (char *)runner);
+        runner = std::fmin((char *)buddy, (char *)runner);
     }
     if (calculated_size >= size + METADATA_SIZE)
     {
@@ -309,7 +309,7 @@ void *SysStats::_merge_blocks(void *toMerge, size_t size)
     }
     buddyData->prev = nullptr;
     buddyData->next = nullptr;
-    void *min = std::min((char *)toMerge, (char *)buddy + METADATA_SIZE);
+    void *min = std::fmin((char *)toMerge, (char *)buddy + METADATA_SIZE);
     buddyData->size *= 2;
     metadata->size *= 2;
     stats.num_allocated_blocks--;
