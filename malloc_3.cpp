@@ -2,7 +2,6 @@
 #include <string.h>
 #include <stdint.h>
 #include <sys/mman.h>
-#include <iostream>
 #include <cmath>
 
 static const int MAX_SIZE = 100000000;
@@ -52,7 +51,7 @@ void *smalloc(size_t size)
     if (stats.list == nullptr)
     {
         stats.start_addr = sbrk(0);
-        void *section = sbrk(((32 * MAX_ORDER_SIZE) - (uintptr_t)stats.start_addr % (32 * MAX_ORDER_SIZE)) + (32 * MAX_ORDER_SIZE)); //?
+        void *section = sbrk(((32 * MAX_ORDER_SIZE) - (uintptr_t)stats.start_addr % (32 * MAX_ORDER_SIZE)) + (32 * MAX_ORDER_SIZE));
         if (section == (void *)(-1))
         {
             return NULL;
@@ -95,7 +94,6 @@ void *smalloc(size_t size)
     // find cell that the size needed is closest to in size
     int cell = stats._find_cell(size);
     // send the cell to helper function which will divide blocks until have one to return
-    // helper function returns address
     MallocMetadata *addr = stats._divide_blocks(cell, cell);
     if (addr == NULL)
     {
@@ -112,10 +110,6 @@ void *smalloc(size_t size)
     }
     addr->prev = nullptr;
     addr->next = nullptr;
-    // stats.num_allocated_blocks++;
-    // stats.num_allocated_bytes += size;
-    // stats.num_free_blocks--;
-    // stats.num_free_bytes = 32 * MAX_ORDER_SIZE - 32 * (METADATA_SIZE);
     return (char *)addr + METADATA_SIZE;
 }
 
@@ -142,10 +136,10 @@ void sfree(void *p)
         stats.num_allocated_bytes -= metadata->size;
         stats.num_allocated_blocks--;
         metadata->is_free = true;
-        munmap(metadata, metadata->size); // not accurate
+        munmap(metadata, metadata->size);
         return;
     }
-    if (metadata->is_free) // what about wrong addr?
+    if (metadata->is_free)
     {
         return;
     }
@@ -206,16 +200,8 @@ void *srealloc(void *oldp, size_t size)
 
 int SysStats::_find_cell(size_t size)
 {
-    //int cell = 0;
     size_t tmpSize = size + METADATA_SIZE;
-    // while (tmpSize > 128)
-    // {
-    //     tmpSize /= 2;
-    //     cell++;
-    // }
-    return std::ceil(std::log2(tmpSize / 128));
-
-    //return cell;
+    return std::ceil(std::log2((double)tmpSize / 128));
 }
 
 void SysStats::_insert(void *toMerge, MallocMetadata *metadata)
@@ -270,14 +256,6 @@ MallocMetadata *SysStats::_divide_blocks(int desired, int current)
     {
         return stats.free_list[desired];
     }
-    // split
-    // remove first block in cell to be split
-    // set the cell current to point to the next term in the list
-    // divide the block size into two
-    // create new metadata for the second block
-    // change size of the first block's metadata
-    // set the current -1 cell to point to the first of the two halved blocks
-    // return address of first block in the list
     MallocMetadata *toSplit = stats.free_list[current];
     stats.free_list[current] = toSplit->next;
     if (toSplit->next != nullptr)
@@ -296,7 +274,6 @@ MallocMetadata *SysStats::_divide_blocks(int desired, int current)
     return toSplit;
 }
 
-// Check this function!!
 void *SysStats::_merge_blocks(void *toMerge, size_t size)
 {
     MallocMetadata *metadata = (MallocMetadata *)((char *)toMerge - METADATA_SIZE);
@@ -310,24 +287,12 @@ void *SysStats::_merge_blocks(void *toMerge, size_t size)
         return toMerge;
     }
     void *buddy = (void *)((reinterpret_cast<uintptr_t>(toMerge) - METADATA_SIZE) ^ metadata->size);
-    // int intPtr1 = static_cast<int>(buddy);
-    // int intPtr2 = static_cast<int>(metadata);
     MallocMetadata *buddyData = (MallocMetadata *)buddy;
     if (!buddyData->is_free || buddyData->size != metadata->size)
     {
         _insert(toMerge, metadata);
         return NULL;
     }
-    // merge
-    // remove buddy block from cell
-    // find which of two has lower address
-    // keep its metadata only
-    // update size field
-    // fix linked list next/prev for merged node
-    // update the pointers
-    // update stats data
-    // recursive call on the merged node
-
     // if it was the last in the list
     int cell = _find_cell(metadata->size - METADATA_SIZE);
     if (stats.free_list[cell] == buddyData)
