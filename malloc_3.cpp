@@ -310,7 +310,7 @@ void *SysStats::_merge_blocks(void *toMerge, size_t size)
     }
     buddyData->prev = nullptr;
     buddyData->next = nullptr;
-    void *min = stats._min_addr(toMerge, buddy + METADATA_SIZE);
+    void *min = stats._min_addr(toMerge, (char*)buddy + METADATA_SIZE);
     buddyData->size *= 2;
     metadata->size *= 2;
     stats.num_allocated_blocks--;
