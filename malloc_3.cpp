@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <sys/mman.h>
 #include <cmath>
+#include <iostream>
 
 static const int MAX_SIZE = 100000000;
 static const int MAX_ORDER = 10;
@@ -94,6 +95,7 @@ void *smalloc(size_t size)
 
     // find cell that the size needed is closest to in size
     int cell = stats._find_cell(size);
+
     // send the cell to helper function which will divide blocks until have one to return
     MallocMetadata *addr = stats._divide_blocks(cell, cell);
     if (addr == NULL)
@@ -169,18 +171,20 @@ void *srealloc(void *oldp, size_t size)
     void *runner = oldp;
     while (calculated_size < size + METADATA_SIZE)
     {
-        MallocMetadata *runnerData = (MallocMetadata *)((char *)runner - METADATA_SIZE);
-        void *buddy = (void *)((reinterpret_cast<uintptr_t>(runner) - METADATA_SIZE) ^ runnerData->size);
+        //MallocMetadata *runnerData = (MallocMetadata *)((char *)runner - METADATA_SIZE);
+        void *buddy = (void *)((reinterpret_cast<uintptr_t>(runner) - METADATA_SIZE) ^ calculated_size);
         MallocMetadata *buddyData = (MallocMetadata *)buddy;
         if (!buddyData->is_free || buddyData->size != metadata->size)
         {
             break;
         }
         calculated_size += buddyData->size;
+
         runner = stats._min_addr(buddy, runner);
     }
     if (calculated_size >= size + METADATA_SIZE)
     {
+
         metadata->is_free = true;
         stats.num_free_bytes += metadata->size - METADATA_SIZE;
         void *addr = stats._merge_blocks(oldp, size + METADATA_SIZE);
@@ -194,6 +198,7 @@ void *srealloc(void *oldp, size_t size)
     {
         return NULL;
     }
+
     memmove(status, oldp, metadata->size);
     sfree(oldp);
     return status;
@@ -203,13 +208,21 @@ void *srealloc(void *oldp, size_t size)
 
 int SysStats::_find_cell(size_t size)
 {
+      int cell = 0;
     size_t tmpSize = size + METADATA_SIZE;
-    return std::ceil(std::log2((double)tmpSize / 128));
+    while (tmpSize > 128)
+    {
+        tmpSize /= 2;
+        cell++;
+    }
+    return cell;
+
 }
 
 void SysStats::_insert(void *toMerge, MallocMetadata *metadata)
 {
     int cell = _find_cell(metadata->size - METADATA_SIZE);
+
     MallocMetadata *addr = stats.free_list[cell];
     if (addr == nullptr)
     {
@@ -230,9 +243,17 @@ void SysStats::_insert(void *toMerge, MallocMetadata *metadata)
         }
         tmp = tmp->next;
     }
-    MallocMetadata *addrData = (MallocMetadata *)addr;
-    metadata->next = addrData->next;
-    addrData->next = metadata;
+    //MallocMetadata *addrData = (MallocMetadata *)addr;
+if((char*)addr > (char *)toMerge){
+if (addr->prev == nullptr) {
+stats.free_list[cell] = metadata;
+}
+addr->prev = metadata;
+metadata->next = addr;
+return;
+}
+    metadata->next = addr->next;
+    addr->next = metadata;
     metadata->prev = addr;
     if (metadata->next != nullptr)
     {
@@ -255,8 +276,17 @@ MallocMetadata *SysStats::_divide_blocks(int desired, int current)
     {
         return NULL;
     }
+
     if (stats.free_list[desired] != nullptr)
     {
+if(desired ==10){
+MallocMetadata *stat = stats.free_list[desired];
+while(stat != nullptr){
+
+stat =stat->next;
+}
+}
+
         return stats.free_list[desired];
     }
     MallocMetadata *toSplit = stats.free_list[current];
@@ -265,6 +295,7 @@ MallocMetadata *SysStats::_divide_blocks(int desired, int current)
     {
         toSplit->next->prev = nullptr;
     }
+
     toSplit->size /= 2;
     MallocMetadata *secondBlock = (MallocMetadata *)((char *)toSplit + toSplit->size); // oi
     *secondBlock = {toSplit->size, true, nullptr, toSplit};
