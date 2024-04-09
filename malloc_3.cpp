@@ -2,8 +2,6 @@
 #include <string.h>
 #include <stdint.h>
 #include <sys/mman.h>
-#include <cmath>
-#include <iostream>
 
 static const int MAX_SIZE = 100000000;
 static const int MAX_ORDER = 10;
@@ -171,7 +169,6 @@ void *srealloc(void *oldp, size_t size)
     void *runner = oldp;
     while (calculated_size < size + METADATA_SIZE)
     {
-        //MallocMetadata *runnerData = (MallocMetadata *)((char *)runner - METADATA_SIZE);
         void *buddy = (void *)((reinterpret_cast<uintptr_t>(runner) - METADATA_SIZE) ^ calculated_size);
         MallocMetadata *buddyData = (MallocMetadata *)buddy;
         if (!buddyData->is_free || buddyData->size != metadata->size)
@@ -208,7 +205,7 @@ void *srealloc(void *oldp, size_t size)
 
 int SysStats::_find_cell(size_t size)
 {
-      int cell = 0;
+    int cell = 0;
     size_t tmpSize = size + METADATA_SIZE;
     while (tmpSize > 128)
     {
@@ -216,7 +213,6 @@ int SysStats::_find_cell(size_t size)
         cell++;
     }
     return cell;
-
 }
 
 void SysStats::_insert(void *toMerge, MallocMetadata *metadata)
@@ -243,15 +239,16 @@ void SysStats::_insert(void *toMerge, MallocMetadata *metadata)
         }
         tmp = tmp->next;
     }
-    //MallocMetadata *addrData = (MallocMetadata *)addr;
-if((char*)addr > (char *)toMerge){
-if (addr->prev == nullptr) {
-stats.free_list[cell] = metadata;
-}
-addr->prev = metadata;
-metadata->next = addr;
-return;
-}
+    if ((char *)addr > (char *)toMerge)
+    {
+        if (addr->prev == nullptr)
+        {
+            stats.free_list[cell] = metadata;
+        }
+        addr->prev = metadata;
+        metadata->next = addr;
+        return;
+    }
     metadata->next = addr->next;
     addr->next = metadata;
     metadata->prev = addr;
@@ -279,13 +276,15 @@ MallocMetadata *SysStats::_divide_blocks(int desired, int current)
 
     if (stats.free_list[desired] != nullptr)
     {
-if(desired ==10){
-MallocMetadata *stat = stats.free_list[desired];
-while(stat != nullptr){
+        if (desired == 10)
+        {
+            MallocMetadata *stat = stats.free_list[desired];
+            while (stat != nullptr)
+            {
 
-stat =stat->next;
-}
-}
+                stat = stat->next;
+            }
+        }
 
         return stats.free_list[desired];
     }
